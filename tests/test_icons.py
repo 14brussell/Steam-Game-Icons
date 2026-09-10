@@ -5,7 +5,11 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from PIL import Image
+import subprocess
+
+
+def make_image(path, size=(32, 32)):
+    subprocess.run(["magick", "-size", f"{size[0]}x{size[1]}", "xc:red", str(path)], check=True)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from steam_icons import Repair, entry
 
@@ -24,7 +28,7 @@ class IconsTest(unittest.TestCase):
         self.addCleanup(self.env.stop)
         cache = self.home / ".local/share/Steam/appcache/librarycache/123"
         cache.mkdir(parents=True)
-        Image.new("RGB", (32, 32), "red").save(cache / ("a" * 40 + ".jpg"))
+        make_image(cache / ("a" * 40 + ".jpg"))
         self.repair = Repair(self.home)
         apps = self.repair.data / "applications"
         apps.mkdir()
@@ -49,7 +53,7 @@ class IconsTest(unittest.TestCase):
         for icon in ['my-custom-icon', 'steam_icon_123']:
             folder = self.repair.data / "icons/hicolor/32x32/apps"
             folder.mkdir(parents=True, exist_ok=True)
-            Image.new('RGB', (32, 32)).save(folder / 'steam_icon_123.png')
+            make_image(folder / 'steam_icon_123.png')
             text = self.original.replace('Icon=steam\n', f'Icon={icon}\n')
             self.path.write_text(text)
             self.repair.run()
@@ -72,6 +76,17 @@ class IconsTest(unittest.TestCase):
             self.path.write_text(text)
             self.repair.run()
             self.assertEqual(text, self.path.read_text())
+
+    def test_artwork_selects_largest_square_and_skips_invalid(self):
+        cache = self.repair.roots[0] / 'appcache/librarycache/123'
+        make_image(cache / ('b' * 40 + '.png'), (64, 64))
+        make_image(cache / ('c' * 40 + '.png'), (128, 64))
+        (cache / ('d' * 40 + '.png')).write_bytes(b'not an image')
+        result = self.repair.artwork('123')
+        self.assertTrue(result.startswith(b'\x89PNG\r\n\x1a\n'))
+        dimensions = subprocess.run(['magick', 'identify', '-format', '%w %h', 'PNG:-'],
+                                    input=result, capture_output=True, check=True).stdout
+        self.assertEqual(dimensions, b'64 64')
 
     def test_restore_preserves_user_icon(self):
         self.repair.run()

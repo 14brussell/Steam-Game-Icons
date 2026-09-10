@@ -9,10 +9,13 @@ periodic scan. No bar widget, API key, or network access.
 
 ## Install
 
-Install the additional dependency, Pillow:
+Enabling this plugin authorizes it to update Icon fields in your user Steam
+shortcuts and save local artwork and undo records as described below.
+
+Uses Python and ImageMagick, both included with standard Omarchy. No extra
+packages are required.
 
 ```sh
-omarchy pkg add python-pillow
 omarchy plugin add https://github.com/14brussell/Steam-Game-Icons --enable --yes
 ```
 
@@ -63,3 +66,21 @@ or disabling the plugin leaves repaired icons working; undo first if desired.
 ```sh
 python3 -m unittest discover -s tests -v
 ```
+
+## Remove
+
+To keep the repaired icons, remove the plugin directly:
+
+```sh
+omarchy plugin remove io.github.14brussell.steam-icons --yes
+```
+
+To restore the original icons, disable the plugin and run `--restore` as shown
+above before removing it. Saved artwork and undo records remain in your data
+and state directories so removing the plugin does not break repaired shortcuts.
+
+## License
+
+Plugin code is licensed under the [MIT License](LICENSE). Game artwork visible
+in the screenshots belongs to its respective owners and is not covered by the
+code license.

@@ -3,15 +3,13 @@
 import argparse
 from contextlib import nullcontext
 import fcntl
-import io
 import json
 import os
 from pathlib import Path
 import re
 import stat
+import subprocess
 import tempfile
-
-from PIL import Image
 
 
 def atomic_write(path, data):
@@ -84,35 +82,37 @@ class Repair:
             # Steam's app-specific hash-named files are icons; exclude banners/logos.
             candidates.extend(p for p in (cache / appid).glob("*") if re.fullmatch(r"[0-9a-f]{40}\.(jpg|png)", p.name))
             candidates.extend(p for p in cache.glob(f"{appid}_*") if re.fullmatch(rf"{appid}_[0-9a-f]{{40}}\.(jpg|png)", p.name))
-        best = None
-        size = 0
-        for path in sorted(candidates):
-            try:
-                with Image.open(path) as image:
-                    width, height = image.size
-                    if width != height or width < 16 or width > 1024:
-                        continue
-                    image.load()
-                    if width > size:
-                        output = io.BytesIO()
-                        image.convert("RGBA").save(output, format="PNG")
-                        best, size = output.getvalue(), width
-            except (OSError, ValueError, Image.DecompressionBombError):
-                continue
-        # Prefer Steam's installed game icon, if one exists.
         for folder in self.icon_dirs:
-            for path in sorted(folder.glob(f"**/steam_icon_{appid}.png")):
-                try:
-                    with Image.open(path) as image:
-                        width, height = image.size
-                        if width != height or not size < width <= 1024:
-                            continue
-                        output = io.BytesIO()
-                        image.convert("RGBA").save(output, format="PNG")
-                        best, size = output.getvalue(), width
-                except (OSError, ValueError, Image.DecompressionBombError):
+            candidates.extend(folder.glob(f"**/steam_icon_{appid}.png"))
+        ranked = []
+        for path in sorted(set(candidates)):
+            try:
+                # Force the expected decoder and use stdin, so filenames never
+                # become ImageMagick options, pseudo-images, or frame selectors.
+                with path.open("rb") as stream:
+                    data = stream.read(16 * 1024 * 1024 + 1)
+                if len(data) > 16 * 1024 * 1024:
                     continue
-        return best
+                coder = "PNG:-" if path.suffix == ".png" else "JPEG:-"
+                result = subprocess.run(
+                    ["magick", "identify", "-ping", "-format", "%w %h", coder],
+                    input=data, capture_output=True, timeout=10, check=True)
+                width, height = map(int, result.stdout.split())
+                if width == height and 16 <= width <= 1024:
+                    ranked.append((width, coder, data))
+            except (OSError, ValueError, subprocess.SubprocessError):
+                continue
+        for _, coder, data in sorted(ranked, key=lambda item: item[0], reverse=True):
+            try:
+                result = subprocess.run(
+                    ["magick", "-limit", "memory", "64MiB", "-limit", "map", "64MiB",
+                     "-limit", "disk", "0", coder, "-strip", "PNG32:-"],
+                    input=data, capture_output=True, timeout=10, check=True)
+                if result.stdout.startswith(b"\x89PNG\r\n\x1a\n"):
+                    return result.stdout
+            except (OSError, subprocess.SubprocessError):
+                continue
+        return None
 
     def run(self, dry_run=False, restore=False):
         if not dry_run:
