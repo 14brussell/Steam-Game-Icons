@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.14brussell.steam-icons",
+  "name": "Steam Game Icons",
+  "version": "1.0.0",
+  "author": "14brussell",
+  "description": "Automatically repair Steam game launcher icons using locally cached artwork",
+  "kinds": ["service"],
+  "entryPoints": {"service": "SteamIcons.qml"}
+}
