@@ -1,5 +1,7 @@
 # Steam Game Icons for Omarchy
 
+![Steam game icons displayed in the Omarchy launcher](assets/steam-game-icons.png)
+
 A headless Omarchy shell plugin that repairs Steam game icons in the app launcher.
 It reacts when Steam shortcuts appear or change in Omarchy’s launcher. Existing
 Steam entries are checked once when enabled or at session startup. There is no
