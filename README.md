@@ -6,10 +6,10 @@ are picked up automatically. No bar widget, API key, or network access.
 
 ## Install
 
-Requires Omarchy's plugin-capable shell, Python 3, and Pillow (`python-pillow` on
-Arch).
+Install the additional dependency, Pillow:
 
 ```sh
+omarchy pkg add python-pillow
 omarchy plugin add https://github.com/14brussell/Steam-Game-Icons --enable --yes
 ```
 
