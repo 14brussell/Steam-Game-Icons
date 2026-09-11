@@ -48,17 +48,50 @@ It does not fetch artwork, change Steam itself, or replace working custom icons.
 ## Preview and undo
 
 ```sh
-python3 steam_icons.py --dry-run
+/usr/bin/python3 -I steam_icons.py --dry-run
 omarchy-shell steam-game-icons status
 omarchy-shell steam-game-icons sync
 omarchy plugin disable io.github.14brussell.steam-icons
-python3 steam_icons.py --restore
+/usr/bin/python3 -I steam_icons.py --restore
 ```
 
 Run commands from the plugin directory. Undo changes only Icon fields still
 pointing to this plugin's artwork, preserving other shortcut edits. Disable
 before undoing to prevent the next scan from applying repairs again. Removing
 or disabling the plugin leaves repaired icons working; undo first if desired.
+
+## Filesystem safety and scan limits
+
+The service runs `/usr/bin/python3 -I` and `/usr/bin/magick`. Python ignores
+ambient Python import settings; image decoding uses a minimal environment and
+an isolated temporary working directory.
+
+Data, state, and shortcut directories must be absolute, owned by your user, and
+not writable by other users. Their ancestors must be owned by your user or root
+and not writable by others (root-owned sticky ancestors such as `/tmp` are
+allowed). Symlinks in mutation paths, symlinked files, hardlinked files, and
+non-regular files are rejected. Standard Steam cache aliases can be resolved
+for reading; the resulting directory chain is validated before use.
+
+The worker retains directory descriptors, uses a non-truncating, nonblocking
+lock, and checks directory and file identities immediately before replacement.
+If a shortcut changes while artwork is being prepared, the repair stops without
+overwriting that edit. Restore uses the same checks. These checks do not sandbox
+other processes running as your user.
+
+Each scan is limited to 8,192 discovered directory entries, 1,024 shortcuts,
+eight levels of icon subdirectories, and 128 MiB of input. Individual desktop
+files are limited to 256 KiB, the undo ledger to 1 MiB / 2,048 records, and image
+inputs to 16 MiB. Each game has at most 64 artwork candidates; a scan performs at
+most 64 decoder calls and checks a 60-second deadline during discovery, reads,
+and decoding. Each decoder has a maximum 10-second timeout, 5 seconds of CPU,
+512 MiB of address space, and 8 MiB per output file. Reaching a limit stops the
+scan; completed repairs and their undo records remain valid.
+
+Installed icon discovery uses your data directory's `icons`, `~/.icons`, and
+the system `hicolor` directories under `/usr/local/share/icons` and
+`/usr/share/icons`. Custom `XDG_DATA_DIRS` search paths are not traversed.
+Failures are reported in the shell log; the service status shows the exit code.
 
 ## Tests
 

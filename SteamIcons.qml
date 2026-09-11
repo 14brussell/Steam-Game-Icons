@@ -64,7 +64,7 @@ Item {
             root.completedScans++
             if (root.pending) debounce.restart()
         }
-        command: ["python3", decodeURIComponent(Qt.resolvedUrl("steam_icons.py").toString().replace(/^file:\/\//, ""))]
+        command: ["/usr/bin/python3", "-I", decodeURIComponent(Qt.resolvedUrl("steam_icons.py").toString().replace(/^file:\/\//, ""))]
         stderr: StdioCollector { onStreamFinished: if (text.trim()) console.warn("Steam Game Icons: " + text.trim()) }
     }
 }

@@ -30,6 +30,7 @@ class IconsTest(unittest.TestCase):
         cache.mkdir(parents=True)
         make_image(cache / ("a" * 40 + ".jpg"))
         self.repair = Repair(self.home)
+        self.repair.icon_dirs = [self.repair.data / "icons", self.home / ".icons", self.home / "system/icons"]
         apps = self.repair.data / "applications"
         apps.mkdir()
         self.path = apps / "Game.desktop"
